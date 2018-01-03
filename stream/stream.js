@@ -1,6 +1,7 @@
-// @author by andyChen
-// @date 2017-01-03
-
+/**
+ * @author by andyChen
+ * @date 2017-01-03
+ */
 
 /* 使用fs.readFile方式来读取文件 */
 console.time();

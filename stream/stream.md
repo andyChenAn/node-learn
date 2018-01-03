@@ -1,6 +1,6 @@
 # Stream(流)
 #### 什么是流？
-在nodejs中流是用来处理流数据的抽象接口。
+在nodejs中流是用来处理流数据的抽象接口。所有的流都是EventEmitter的实例
 #### 流的类型有哪些？
 - Readable - 可读流
 - Writable - 可写流
