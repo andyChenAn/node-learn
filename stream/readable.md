@@ -130,12 +130,87 @@ Readable.prototype.read = function(n) {
 第六步：
 在push方法中，最终执行的是maybeReadMore_函数循环调用read(0)方法，在read(0)函数中再次判断可读流是否可以结束，如果不结束，那么再进行一次_read(size)读取。
 ```
-### 总结：
+### 可读流实现原理：
 1. 刚创建的可读流对象可以说是一个空壳，里面是没有数据的，只是保存了一些初始化的状态。
 2. 当我们监听可读流对象的data事件，那么内部会自动调用可读流对象的resume方法，将流切换到流动状态。
 3. 在resume方法内部中，其实是调用resume_方法，而resume_方法中调用了一次read(0)方法。
 4. 在read方法中，首先检查流是否满足结束条件，如果满足，则结束，否则，会调用实例的_read方法，这个方法是我们自己实现，读取一段waterMark长度的数据。
 5. 在_read方法中，我们需要调用push方法，在push方法内部，最终会调用maybeReadMore_函数循环调用read(0)方法，在read(0)函数中再次判断可读流是否可以结束，如果不结束，那么再进行一次_read(size)读取。
+### end事件：
+流中没有数据可供消费时触发该事件
+```
+const stream = require('stream');
+const readable = stream.Readable();
+let arr = ['andy' , 'alex' , 'jack'];
+readable._read = function () {
+  this.push(arr.shift() || null);
+}
+readable.on('data' , chunk => {
+  console.log('push' , chunk.toString())
+});
+readable.on('end' , () => {
+  console.log('流中的数据已经被消费完了')
+});
+```
+### 可读流的两种模式
+- flowing模式：
+  
+  可读流自动从系统底层读取数据，并通过事件接口尽快的将数据提供给应用。
+- paused模式
+  
+  必须显式调用read方法来从流中读取数据片段
 
+可以将paused的可读流，通过以下几种方式切换为flowing模式的流：
+1. 监听"data"事件
+2. 调用resume方法
+3. 调用pipe方法将数据发送到可写流。
 
+将flowing的可读流切换为paused模式的流：
+1. 可以通过调用pause方法
+2. 取消data事件监听，并调用unpipe方法。
 
+注意：如果可读流切换到flowing模式，且没有消费者处理流中的数据，这些数据将会丢失，比如，调用了readable.resume()方法却没有监听'data'事件，或是取消了'data'事件监听，就有可能出现这种情况
+```
+const stream = require('stream');
+const readable = stream.Readable();
+let arr = ['andy' , 'alex' , 'jack'];
+readable._read = function () {
+  this.push(arr.shift() || null);
+};
+readable.pause();
+//调用了resume方法，将可读流切换为flowing模式，但是没有监听data事件
+readable.resume();
+//这里依然会触发
+readable.on('end' , () => {
+  console.log('流中的数据已经被消费完了')
+});
+//我们可以看到，当流中所有的数据已经读取完毕了，会触发end事件，也就是说这些数据都被丢失了
+```
+### 流的三种状态
+- readable._readableState.flowing = null
+- readable._readableState.flowing = false
+- readale._readableState.flowing = true
+
+可读流初始化状态的flowing的值为null，当我们调用resume方法，pipe方法，监听data事件时，会将readable._readableState.flowing的值变为true，这时，随着数据的生成，就可以开始频繁触发事件，读取数据了。
+
+调用pause()方法和调用unpipe()方法，会将readable._readableState.flowing的值变为false，这将暂停事件流，但不会暂停数据生成，生成的数据会堆积在缓存中，这时候，监听data事件，不会导致readable._readableState.flowing的值变为true。
+
+```
+const stream = require('stream');
+const readable = stream.Readable();
+let arr = ['andy' , 'alex' , 'jack'];
+readable._read = function () {
+  this.push(arr.shift() || null);
+};
+readable.on('data' , chunk => {
+   //监听data事件，flowing为true
+  console.log(readable._readableState.flowing);   //true
+});
+readable.on('end' , () => {
+  console.log(readable._readableState.flowing);    //true
+  readable.pause();
+  //调用pause方法，flowing变为false
+  console.log(readable._readableState.flowing);    //false
+  console.log('流中的数据已经被消费完了')
+});
+```
