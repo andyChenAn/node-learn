@@ -224,21 +224,25 @@ function readableAddChunk(stream, chunk, encoding, addToFront, skipChunkCheck) {
   } else {
     var er;
     if (!skipChunkCheck)
+      //检查chunk类型是否正确
       er = chunkInvalid(state, chunk);
     if (er) {
       stream.emit('error', er);
     } else if (state.objectMode || chunk && chunk.length > 0) {
+      //这里是判断chunk的类型，不是字符串，不是buffer，不是对象模式
+      //将chunk转化为unit8Array格式的数据
       if (typeof chunk !== 'string' &&
           !state.objectMode &&
           Object.getPrototypeOf(chunk) !== Buffer.prototype) {
         chunk = Stream._uint8ArrayToBuffer(chunk);
       }
-
+      //判断是否将数据添加在缓冲队列的前面(其实就是看调用的是readable.push还是readable.unshift)
       if (addToFront) {
         if (state.endEmitted)
           stream.emit('error', new Error('stream.unshift() after end event'));
         else
           addChunk(stream, state, chunk, true);
+      //判断是否已经没有数据写入了，如果已经没有数据写入，push调用必须是在全部写入之前
       } else if (state.ended) {
         stream.emit('error', new Error('stream.push() after EOF'));
       } else {
@@ -267,6 +271,7 @@ function addChunk(stream, state, chunk, addToFront) {
     stream.read(0);
   } else {
     // update the buffer info.
+    // 将数据添加到缓冲队列中
     state.length += state.objectMode ? 1 : chunk.length;
     if (addToFront)
       state.buffer.unshift(chunk);
