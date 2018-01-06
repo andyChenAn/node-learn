@@ -194,7 +194,9 @@ Readable.prototype._destroy = function(err, cb) {
 Readable.prototype.push = function(chunk, encoding) {
   var state = this._readableState;
   var skipChunkCheck;
-
+  
+  //如果是非对象模式，并且读取的数据类型为字符串，那么就将字符串转化为Buffer类型
+  //如果是对象模式，那么数据不做任何处理
   if (!state.objectMode) {
     if (typeof chunk === 'string') {
       encoding = encoding || state.defaultEncoding;
