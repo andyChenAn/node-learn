@@ -351,6 +351,7 @@ function writeOrBuffer(stream, state, isBuf, chunk, encoding, cb) {
 
   var ret = state.length < state.highWaterMark;
   // we must ensure that previous needDrain will not be reset to false.
+  // 如果缓存中的数据长度大于highWaterMark，那么就会触发drain事件
   if (!ret)
     state.needDrain = true;
 

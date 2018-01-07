@@ -268,6 +268,11 @@ function readableAddChunk(stream, chunk, encoding, addToFront, skipChunkCheck) {
 }
 
 function addChunk(stream, state, chunk, addToFront) {
+  //这里表示，如果异步调用push方法，只要push前缓存为空
+  //就可以确定当前的数据就是下一次要求的数据
+  //所以直接触发data事件，因此不会将数据添加到缓存中。
+  //然后再调用read方法，触发下一次的_read调用，从而源源不断的产生数据，知道调用push(null)为止
+  //如果不是异步调用push方法，那么会将数据写入到可读就中的缓存中
   if (state.flowing && state.length === 0 && !state.sync) {
     stream.emit('data', chunk);
     stream.read(0);
