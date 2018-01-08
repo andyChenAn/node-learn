@@ -614,6 +614,8 @@ Readable.prototype.pipe = function(dest, pipeOpts) {
   // on the source.  This would be more elegant with a .once()
   // handler in flow(), but adding and removing repeatedly is
   // too slow.
+  // 当可读流中的数据写入到可写流中时，数据字节数大于可写流的highWaterMark值时
+  // 可写流对象触发drain事件，并将可读流切换为flowing模式，调用flow()方法，读取数据
   var ondrain = pipeOnDrain(src);
   dest.on('drain', ondrain);
 
@@ -646,11 +648,14 @@ Readable.prototype.pipe = function(dest, pipeOpts) {
   // in ondata again. However, we only want to increase awaitDrain once because
   // dest will only emit one 'drain' event for the multiple writes.
   // => Introduce a guard on increasing awaitDrain.
+  // 调用pipe方法，内部会触发data事件监听
   var increasedAwaitDrain = false;
   src.on('data', ondata);
   function ondata(chunk) {
     debug('ondata');
     increasedAwaitDrain = false;
+    // 如果写入的数据字节数大于可写流对象的警戒线
+    // 那么会调用可读流的pause方法，来暂停读取数据，将可读流切换为paused模式
     var ret = dest.write(chunk);
     if (false === ret && !increasedAwaitDrain) {
       // If the user unpiped during `dest.write()`, it is possible
@@ -711,12 +716,20 @@ Readable.prototype.pipe = function(dest, pipeOpts) {
   return dest;
 };
 
+// 触发drain事件监听器函数，目标可写流可能会存在多次写入，需要进行缓冲的情况
+// 需要确保所有需要缓冲的写入都完成后，再次将可读流切换到flowing模式
 function pipeOnDrain(src) {
   return function() {
     var state = src._readableState;
     debug('pipeOnDrain', state.awaitDrain);
+    // 判断是否存在写入的数据字节数大于可写流的highWaterMark，如果存在，则减去一次
+    // 判断需要写入的数据有多少次字节数是大于可写流的highWaterMark
+    // 确保所有数据都写入完成后，再次将可读流切换为flowing模式
     if (state.awaitDrain)
       state.awaitDrain--;
+    // 判断awaitDrain为0，表示所有数据都已经写入完成
+    // 判断可读流是否有监听data事件，如果判断这两个条件，那么将可读流切换为flowing模式
+    // 调用flow方法，再次读取数据
     if (state.awaitDrain === 0 && EE.listenerCount(src, 'data')) {
       state.flowing = true;
       flow(src);
