@@ -6,4 +6,4 @@
   - [highWaterMark(警戒线)](https://github.com/andyChenAn/node-learn/tree/master/stream/highWaterMark.md)
   - [pipe(管道)](https://github.com/andyChenAn/node-learn/tree/master/stream/pipe.md)
 - [事件循环](https://github.com/andyChenAn/node-learn/tree/master/event-loop/event-loop.md)
-- [文件系统](https://github.com/andyChenAn/node-learn/tree/master/event-loop/file-system.md)
+- [文件系统](https://github.com/andyChenAn/node-learn/tree/master/file-system/file-system.md)
