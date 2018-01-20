@@ -77,3 +77,45 @@ co(function* () {
 	}
 });
 ```
+#### async/await处理异常
+async函数应该是对co+generator进行了内部的封装，其实调用的方式和上面的差不多。我们直接使用try/catch方式来捕获异常，然后通过next(err)，将异常传递下去。
+```
+const fs = require('fs');
+// 将异步操作封装成一个Promise对象
+function readFile (path) {
+	return new Promise((resolve , reject) => {
+		fs.readFile(path , (err , data) => {
+			if (err) {
+				reject(err);
+			}
+			resolve(data);
+		})
+	});
+};
+
+// async函数里面我们可以直接使用try/catch捕获异步操作中的异常 
+async function read (path) {
+	try {
+		let result = await readFile(path);
+		console.log(result.toString());
+	} catch (err) {
+		console.log(err.code);
+		//next(err);
+	}
+};
+
+read('./andy.txt')
+```
+#### 在app.js中使用app.use(errorhandler)
+在app.js中使用app.use(errorhandler)，统一处理返回的err，通过header头部类型判断是否返回页面或json数据或其他类型。其实就是每个中间件函数中，如果有遇到异常，都会调用next(err)，将异常传递下去，最终都会到app.use(errorhandler)这里进行统一处理。我们可以参考cnode社区的源码：
+```
+// error handler
+if (config.debug) {
+  app.use(errorhandler());
+} else {
+  app.use(function (err, req, res, next) {
+    logger.error(err);
+    return res.status(500).send('500 status');
+  });
+}
+```
