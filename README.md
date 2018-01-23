@@ -11,3 +11,4 @@
 - [文件系统](https://github.com/andyChenAn/node-learn/blob/master/file-system/README.md)
 - [单元测试](https://github.com/andyChenAn/node-learn/blob/master/test/README.md)
 - [异常处理](https://github.com/andyChenAn/node-learn/blob/master/exception/README.md)
+- [模块加载](https://github.com/andyChenAn/node-learn/blob/master/module/README.md)
