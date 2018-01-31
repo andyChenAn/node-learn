@@ -104,4 +104,4 @@ server.listen(3000 , () => {
 ```
 **注意：这里只是简单的实现了静态文件服务器，其实里面还应该包括设置响应头字段，比如是否缓存，缓存时长，根据mime类型，返回特定类型的内容等这些都是需要去实现的，具体我们可以参考'serve-static'这个nodejs模块，里面有比较详细的说明。**
 #### 结果：
-[!image](https://github.com/andyChenAn/node-learn/raw/master/serve-file-static/1.png)
+![image](https://github.com/andyChenAn/node-learn/blob/master/serve-file-static/1.png)
