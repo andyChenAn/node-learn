@@ -13,3 +13,4 @@
 - [异常处理](https://github.com/andyChenAn/node-learn/blob/master/exception/README.md)
 - [模块加载](https://github.com/andyChenAn/node-learn/blob/master/module/README.md)
 - [模块热更新](https://github.com/andyChenAn/node-learn/blob/master/hot-load/README.md)
+- [静态文件服务器](https://github.com/andyChenAn/node-learn/blob/master/serve-file-static/README.md)
