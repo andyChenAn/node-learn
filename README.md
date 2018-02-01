@@ -14,3 +14,4 @@
 - [模块加载](https://github.com/andyChenAn/node-learn/blob/master/module/README.md)
 - [模块热更新](https://github.com/andyChenAn/node-learn/blob/master/hot-load/README.md)
 - [静态文件服务器](https://github.com/andyChenAn/node-learn/blob/master/serve-file-static/README.md)
+- [实现异步reduce](https://github.com/andyChenAn/node-learn/blob/master/实现异步reduce/README.md)
