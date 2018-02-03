@@ -106,3 +106,93 @@ asyncReduce(arr , 2).then(res => {
 ```
 23
 ```
+### 举一反三，我们来实现一个异步的map功能
+```
+Array.prototype.asyncMap = async function (callback) {
+	try {
+		let arr = this;
+		let res = [];
+		let key = null;
+		//数组迭代器包装函数
+		function keyIterator () {
+			let index = -1;
+			let len = arr.length;
+			return function () {
+				index++;
+				return index < len ? index : null;
+			}
+		}
+		// 数组迭代器对象
+		let nextKey = keyIterator();
+		
+		while ((key = nextKey()) !== null) {
+			await (new Promise((resolve , reject) => {
+				setTimeout(() => {
+					try {
+						res[key] = callback(arr[key] , key , arr);
+						resolve(res[key]);
+					} catch (err) {
+						console.log(err.message);
+						reject(err);
+					}
+				} , 0)
+			}))
+		}
+		return res;
+	} catch (err) {
+		console.log(err.message);
+	}
+}
+```
+案例：
+```
+const arr = [1,2,3,4,5,6];
+
+Array.prototype.asyncMap = async function (callback) {
+	try {
+		let arr = this;
+		let res = [];
+		let key = null;
+		//数组迭代器包装函数
+		function keyIterator () {
+			let index = -1;
+			let len = arr.length;
+			return function () {
+				index++;
+				return index < len ? index : null;
+			}
+		}
+		// 数组迭代器对象
+		let nextKey = keyIterator();
+		
+		while ((key = nextKey()) !== null) {
+			await (new Promise((resolve , reject) => {
+				setTimeout(() => {
+					try {
+						res[key] = callback(arr[key] , key , arr);
+						resolve(res[key]);
+					} catch (err) {
+						console.log(err.message);
+						reject(err);
+					}
+				} , 0)
+			}))
+		}
+		return res;
+	} catch (err) {
+		console.log(err.message);
+	}
+}
+
+arr.asyncMap(function (value) {
+	return value * 2;
+}).then(res => {
+	console.log('res:' , res);
+})
+console.log('先打印这里，然后才是打印数组')
+```
+结果：
+```
+先打印这里，然后才是打印数组
+res: [ 2, 4, 6, 8, 10, 12 ]
+```
