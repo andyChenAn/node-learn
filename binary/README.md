@@ -1,5 +1,6 @@
 # 缓冲区(Buffer)
 [参考朴灵的深入浅出nodejs](https://github.com/JacksonTian)
+
 在nodejs中，Buffer是一个全局对象，主要用来处理二进制数据流。Buffer类的实例类似于整数数组，但是Buffer的大小是固定不变的，Buffer的大小在被创建的时候就已经确定了，无法修改。Buffer是基于Uint8Array来实现的，所以Buffer实例也是Uint8Array实例。
 
 ```
