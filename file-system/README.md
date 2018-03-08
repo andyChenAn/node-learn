@@ -214,3 +214,12 @@ client.on('error' , function (msg) {
 ```
 ### 监视文件及文件夹
 调用fs.watch()和fs.watchFile()方法来实现。
+### 总结
+nodejs中的fs模块可以分为以下几项：
+- 文件监视类(fs.watch())
+- 文件可读流类(fs.createReadStream())
+- 文件可写流类(fs.createWriteStream())
+- 文件状态类(fs.stat())
+- fs的一些方法和常量（其实这些方法底层都是通过C++来实现的，可以参考node_file.cc这个文件）
+
+nodejs的流，在fs模块也有所体现，比如说文件的可读流和可写流。比如说文件的可读流，其实内部是先创建了一个可读流对象，然后调用fs.open()方法打开文件，在open方法的回调函数里调用可读流的read方法读取数据。
