@@ -214,3 +214,54 @@ readable.on('end' , () => {
   console.log('流中的数据已经被消费完了')
 });
 ```
+### 可读流推送数据到缓存的内部实现
+首先我们来看一段代码：
+```
+const {Readable} = require('stream');
+const arr = ['jack' , 'alex'];
+const reader = new Readable({
+    read : function () {
+        const data = arr.shift() || null;
+        this.push(data);
+    }
+});
+reader.on('readable' , () => {
+    console.log('可读');
+})
+```
+从上面代码中，我们定义了一个可读流对象，并且监听readable事件，我们通过源码可以看到，当我们监听了readable事件后，内部会这样处理：
+```
+Readable.prototype.on = function(ev, fn) {
+  const res = Stream.prototype.on.call(this, ev, fn);
+   // 如果监听了可读流的data事件，那么会将可读流模式转换成flow模式
+   // 如果监听了可读流的readable事件，那么可读流将开始读取数据并将读取的数据保存到缓存中
+  if (ev === 'data') {
+    // Start flowing on next tick if stream isn't explicitly paused
+    if (this._readableState.flowing !== false)
+      this.resume();
+  } else if (ev === 'readable') {
+    const state = this._readableState;
+    if (!state.endEmitted && !state.readableListening) {
+      state.readableListening = state.needReadable = true;
+      state.emittedReadable = false;
+      if (!state.reading) {
+        process.nextTick(nReadingNextTick, this);
+      } else if (state.length) {
+        emitReadable(this);
+      }
+    }
+  }
+
+  return res;
+};
+```
+nReadingNextTick函数代码：
+```
+function nReadingNextTick(self) {
+  debug('readable nexttick read 0');
+  // 调用read方法读取数据保存到缓存中
+  self.read(0);
+}
+```
+调用可读流对象的read方法，内部会调用_read方法，然后在_read方法内部会调用push方法，将数据保存到缓存中，其实就是保存在可读流对象的buffer属性上，当数据保存后，会调用maybeReadMore方法继续读取数据保存到缓存中，其实内部通过while()循环调用stream.read(0)来读取数据并保存到缓存中。
+### 可读流读取数据的内部实现

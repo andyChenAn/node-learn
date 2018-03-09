@@ -220,6 +220,8 @@ Readable.prototype.unshift = function(chunk) {
 
 function readableAddChunk(stream, chunk, encoding, addToFront, skipChunkCheck) {
   var state = stream._readableState;
+  // 如果chunk为null，也就是说读取的数据是null，那么表示读取数据已经完成
+  // 即：到达流数据尾部，这时候也会触发readable事件
   if (chunk === null) {
     state.reading = false;
     onEofChunk(stream, state);
@@ -796,6 +798,9 @@ Readable.prototype.unpipe = function(dest) {
 
 // set up data events if they are asked for
 // Ensure readable listeners eventually get something
+// 注册data事件和readable事件
+// 如果注册了data事件，那么可读流会转换为flow模式
+// 如果注册了readable事件，那么会推送数据到缓存中，即可读流对象的buffer属性中。
 Readable.prototype.on = function(ev, fn) {
   const res = Stream.prototype.on.call(this, ev, fn);
 
@@ -808,6 +813,7 @@ Readable.prototype.on = function(ev, fn) {
     if (!state.endEmitted && !state.readableListening) {
       state.readableListening = state.needReadable = true;
       state.emittedReadable = false;
+      // 推送数据到缓存中
       if (!state.reading) {
         process.nextTick(nReadingNextTick, this);
       } else if (state.length) {
@@ -822,6 +828,8 @@ Readable.prototype.addListener = Readable.prototype.on;
 
 function nReadingNextTick(self) {
   debug('readable nexttick read 0');
+  // 调用read(0)方法推送数据到缓存中，这里不会读取数据
+  // 如果是想要读取数据的话，那么是调用read()或者read(n)，这是read(0)和其他read()或者read(n)的差别
   self.read(0);
 }
 
