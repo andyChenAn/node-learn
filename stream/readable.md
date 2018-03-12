@@ -214,8 +214,8 @@ readable.on('end' , () => {
   console.log('流中的数据已经被消费完了')
 });
 ```
-### 可读流推送数据到缓存的内部实现
-首先我们来看一段代码：
+### 可读流内部的pause模式的将资源缓存到缓冲区的具体实现
+当我们监听可读流的readable事件时，通过内部循环多次调用可读流的read(0)方法，将资源推送到缓冲区中，如果缓存的资源小于highWaterMark则继续调用，如果缓存的资源已经大于highWaterMark，那么就不会将资源推送到缓冲区中。
 ```
 const {Readable} = require('stream');
 const arr = ['jack' , 'alex'];
@@ -264,4 +264,90 @@ function nReadingNextTick(self) {
 }
 ```
 调用可读流对象的read方法，内部会调用_read方法，然后在_read方法内部会调用push方法，将数据保存到缓存中，其实就是保存在可读流对象的buffer属性上，当数据保存后，会调用maybeReadMore方法继续读取数据保存到缓存中，其实内部通过while()循环调用stream.read(0)来读取数据并保存到缓存中。
-### 可读流读取数据的内部实现
+### 可读流在paused模式下读取数据的内部实现
+我们先来看一段代码:
+```
+const {Readable} = require('stream');
+const arr = new Array(100000).fill(1);
+const readable = new Readable({
+    read () {
+        const data = arr.splice(arr.length - 5000).reduce((a , b) => a + '' + b);
+        console.log(data.length)
+        this.push(data);
+    }
+})
+readable.on('readable' , () => {
+    const data = readable.read(5000);
+    console.log('length : ' , data.length)
+});
+```
+如果我们在readable事件回调函数中，调用可读流对象的read()方法，传入一个指定读取数据大小的参数，来读取数据，内部是如何实现的呢？
+
+- 当调用read(5000)方法时，其实内部会执行Readable.stream.read方法，该方法内部会先执行_read(highWaterMark)方法，来将资源推送到缓冲区中
+- 然后调用howMuchToRead()方法，看需要读取多少数据，再调用fromList()方法从缓冲区中读取，然后将数据返回。
+
+#### 什么时候会触发可读流的readable事件？
+我们可以看一下源码：
+
+源码1：
+```
+function addChunk(stream, state, chunk, addToFront) {
+  //这里表示，如果异步调用push方法，只要push前缓存为空
+  //就可以确定当前的数据就是下一次要求的数据
+  //所以直接触发data事件，因此不会将数据添加到缓存中。
+  //然后再调用read方法，触发下一次的_read调用，从而源源不断的产生数据，知道调用push(null)为止
+  //如果不是异步调用push方法，那么会将数据写入到可读就中的缓存中
+  if (state.flowing && state.length === 0 && !state.sync) {
+    stream.emit('data', chunk);
+    stream.read(0);
+  } else {
+    // update the buffer info.
+    // 将数据添加到缓冲队列中
+    state.length += state.objectMode ? 1 : chunk.length;
+    if (addToFront)
+      state.buffer.unshift(chunk);
+    else
+      state.buffer.push(chunk);
+    // 这里我们可以看出，每次有新的数据缓存到缓冲区中时，就会触发readable事件
+    if (state.needReadable)
+      emitReadable(stream);
+  }
+  maybeReadMore(stream, state);
+}
+```
+源码2：
+```
+function readableAddChunk(stream, chunk, encoding, addToFront, skipChunkCheck) {
+  var state = stream._readableState;
+  // 如果chunk为null，也就是说读取的数据是null，那么表示读取数据已经完成
+  // 即：到达流数据尾部，这时候也会触发readable事件
+  if (chunk === null) {
+    state.reading = false;
+    onEofChunk(stream, state);
+  } else {
+        //源码...
+    } else if (!addToFront) {
+      state.reading = false;
+    }
+  }
+  return needMoreData(state);
+}
+
+function onEofChunk(stream, state) {
+  if (state.ended) return;
+  if (state.decoder) {
+    var chunk = state.decoder.end();
+    if (chunk && chunk.length) {
+      state.buffer.push(chunk);
+      state.length += state.objectMode ? 1 : chunk.length;
+    }
+  }
+  state.ended = true;
+
+  // emit 'readable' now to make sure it gets picked up.
+  // 触发可读流的readable事件
+  emitReadable(stream);
+}
+
+```
+通过这两段代码，我们可以知道，如果有新的数据缓存到缓冲区的时候，就会触发可读流的readable事件，如果资源读到了尾部的时候，也会触发可读流的readable事件。

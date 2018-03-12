@@ -286,7 +286,7 @@ function addChunk(stream, state, chunk, addToFront) {
       state.buffer.unshift(chunk);
     else
       state.buffer.push(chunk);
-
+    // 这里我们可以看出，每次有新的数据缓存到缓冲区中时，就会触发readable事件
     if (state.needReadable)
       emitReadable(stream);
   }
