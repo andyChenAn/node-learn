@@ -544,3 +544,92 @@ function maybeReadMore_(stream, state) {
 }
 ```
 调用maybeReadMore_函数，其实内部就是通过while循环调用read(0)方法来蓄满可读流的缓冲区。所以我们才会看到先执行了read方法，然后触发了readable事件，然后再执行了多次read方法(其实就是在蓄满缓冲区)。
+
+例子2：
+```
+const Readable = require('stream').Readable;
+// 实现一个可读流
+class SubReadable extends Readable {
+  constructor(dataSource, options) {
+    super(options);
+    this.dataSource = dataSource;
+  }
+  // 文档提出必须通过_read方法调用push来实现对底层数据的读取
+  _read() {
+    console.log('阈值规定大小：', arguments['0'] + ' bytes')
+    const data = this.dataSource.makeData()
+    let result = this.push(data)
+    if(data) console.log('添加数据大小：', data.toString().length + ' bytes')
+    console.log('已缓存数据大小: ', subReadable._readableState.length + ' bytes')
+    console.log('超过阈值限制或数据推送完毕：', !result)
+    console.log('====================================')
+  }
+}
+
+// 模拟资源池
+const dataSource = {
+  data: new Array(1000000).fill('1'),
+  // 每次读取时推送一定量数据
+  makeData() {
+    if (!dataSource.data.length) return null;
+    return dataSource.data.splice(dataSource.data.length - 5000).reduce((a,b) => a + '' + b)
+  }
+  //每次向缓存推5000字节数据
+};
+
+const subReadable = new SubReadable(dataSource);
+
+subReadable.on('readable', () => {
+    let chunk = subReadable.read(1000)
+    if(chunk) 
+      console.log(`读取 ${chunk.length} bytes数据`);
+    console.log('缓存剩余数据大小: ', subReadable._readableState.length + ' byte')
+    console.log('------------------------------------')
+})
+```
+结果：
+```
+阈值规定大小： 16384 bytes
+添加数据大小： 5000 bytes
+已缓存数据大小:  5000 bytes
+超过阈值限制或数据推送完毕： false
+====================================
+阈值规定大小： 16384 bytes
+添加数据大小： 5000 bytes
+已缓存数据大小:  10000 bytes
+超过阈值限制或数据推送完毕： false
+====================================
+读取 1000 bytes数据
+缓存剩余数据大小:  9000 byte
+------------------------------------
+阈值规定大小： 16384 bytes
+添加数据大小： 5000 bytes
+已缓存数据大小:  14000 bytes
+超过阈值限制或数据推送完毕： false
+====================================
+阈值规定大小： 16384 bytes
+添加数据大小： 5000 bytes
+已缓存数据大小:  19000 bytes
+超过阈值限制或数据推送完毕： true
+====================================
+阈值规定大小： 16384 bytes
+添加数据大小： 5000 bytes
+已缓存数据大小:  24000 bytes
+超过阈值限制或数据推送完毕： true
+====================================
+读取 1000 bytes数据
+缓存剩余数据大小:  23000 byte
+------------------------------------
+读取 1000 bytes数据
+缓存剩余数据大小:  22000 byte
+------------------------------------
+```
+其实执行过程与上面分析的差不多，这里就主要提一下，当触发readable事件时是异步的，执行maybeReadable_也是异步的，所以会先触发readable事件，所以会执行回调函数里的read(1000)，当执行read(1000)的时候，之后又会异步触发readable事件，和异步执行maybeReadable，由此形成一个环。这个时候会调用:
+```
+调用read(1000)-->调用_read(highWaterMark)-->调用push()-->调用readableAddChunk()-->调用addChunk()
+```
+所以我们看到打印了两次read方法里面的内容，一次readable事件回调函数里面的内容，当触发完readable事件，就会执行第二个异步操作maybeReadable_，这个函数里面就是循环调用read(0)来蓄满缓冲区，所以到缓存的数据达到19000bytes的时候，就没有再继续调用read(0)了，因为已经达到了highWaterMark的上限。但是由于之前在readable事件回调函数中执行了readable.read(1000)，所以又会回到异步触发readable事件和异步执行maybeReadable_函数，所以会触发readable事件，并继续执行read(1000)，然后又会调用:
+```
+调用read(1000)-->调用_read(highWaterMark)-->调用push()-->调用readableAddChunk()-->调用addChunk()
+```
+所以再达到19000bytes后，又往可读流的缓冲区里缓存了5000bytes的资源。而由于缓冲区的资源已经达到了highWaterMark的上限，所以没有继续往缓冲区中添加资源。
