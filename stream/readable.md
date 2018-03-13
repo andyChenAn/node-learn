@@ -351,3 +351,196 @@ function onEofChunk(stream, state) {
 
 ```
 通过这两段代码，我们可以知道，如果有新的数据缓存到缓冲区的时候，就会触发可读流的readable事件，如果资源读到了尾部的时候，也会触发可读流的readable事件。
+### 可读流在paused模式下具体的读取数据的执行过程
+[例子是参考这里](https://github.com/Aaaaaaaty/blog/issues/28)
+
+我们通过几个例子来分别展示：
+
+例子1：
+```
+const Readable = require('stream').Readable;
+// 实现一个可读流
+class SubReadable extends Readable {
+  constructor(dataSource, options) {
+    super(options);
+    this.dataSource = dataSource;
+  }
+  // 文档提出必须通过_read方法调用push来实现对底层数据的读取
+  _read() {
+    console.log('阈值规定大小：', arguments['0'] + ' bytes')
+    const data = this.dataSource.makeData()
+    let result = this.push(data)
+    if(data) console.log('添加数据大小：', data.toString().length + ' bytes')
+    console.log('已缓存数据大小: ', subReadable._readableState.length + ' bytes')
+    console.log('超过阈值限制或数据推送完毕：', !result)
+    console.log('====================================')
+  }
+}
+
+// 模拟资源池
+const dataSource = {
+  data: new Array(1000000).fill('1'),
+  // 每次读取时推送一定量数据
+  makeData() {
+    if (!dataSource.data.length) return null;
+    return dataSource.data.splice(dataSource.data.length - 5000).reduce((a,b) => a + '' + b)
+  }
+  //每次向缓存推5000字节数据
+};
+
+const subReadable = new SubReadable(dataSource);
+
+subReadable.on('readable', () => {
+    console.log('缓存剩余数据大小: ', subReadable._readableState.length + ' byte')
+    console.log('------------------------------------')
+})
+```
+结果为：
+```
+阈值规定大小： 16384 bytes
+添加数据大小： 5000 bytes
+已缓存数据大小:  5000 bytes
+超过阈值限制或数据推送完毕： false
+====================================
+缓存剩余数据大小:  5000 byte
+------------------------------------
+阈值规定大小： 16384 bytes
+添加数据大小： 5000 bytes
+已缓存数据大小:  10000 bytes
+超过阈值限制或数据推送完毕： false
+====================================
+阈值规定大小： 16384 bytes
+添加数据大小： 5000 bytes
+已缓存数据大小:  15000 bytes
+超过阈值限制或数据推送完毕： false
+====================================
+阈值规定大小： 16384 bytes
+添加数据大小： 5000 bytes
+已缓存数据大小:  20000 bytes
+超过阈值限制或数据推送完毕： true
+=====================================
+```
+我们可以很清楚的看到，可读流的readable事件只触发了一次，而内部具体是怎么执行的呢？
+
+```
+// set up data events if they are asked for
+// Ensure readable listeners eventually get something
+// 注册data事件和readable事件
+// 如果注册了data事件，那么可读流会转换为flow模式
+// 如果注册了readable事件，那么会推送数据到缓存中，即可读流对象的buffer属性中。
+Readable.prototype.on = function(ev, fn) {
+  if (ev === 'data') {
+    // 代码省略...
+  } else if (ev === 'readable') {
+    const state = this._readableState;
+    if (!state.endEmitted && !state.readableListening) {
+      state.readableListening = state.needReadable = true;
+      state.emittedReadable = false;
+      // 推送数据到缓存中
+      if (!state.reading) {
+        process.nextTick(nReadingNextTick, this);
+      } else if (state.length) {
+        emitReadable(this);
+      }
+    }
+  }
+  return res;
+};
+```
+从上面的源码中可以看出，当我们监听readable事件时，一开始就会设置一些与readable事件相关的变量
+```
+state.readableListening：表示是否正在监听readable事件
+state.needReadable：表示是否需要触发readable事件
+state.emittedReadable：表示是否已经触发了readable事件
+```
+并调用
+```
+process.nextTick(nReadingNextTick, this);
+```
+nReadingNextTick方法内部会调用read(0)方法，向可读流的缓冲区中缓存数据。
+
+接下来就会依次调用以下函数：
+
+```
+调用read(0)-->调用_read(highWaterMark)-->调用push()-->调用readableAddChunk()-->调用addChunk()
+```
+这里需要注意的是在addChunk函数中会处理以下几件事情：
+- state.buffer.push(chunk)将数据缓存到可读流的缓冲区中
+- 调用emitReadable(stream)，触发readable事件
+- 调用maybeReadMore(stream , state)，蓄满可读流的缓冲区
+```
+function addChunk(stream, state, chunk, addToFront) {
+  //这里表示，如果异步调用push方法，只要push前缓存为空
+  //就可以确定当前的数据就是下一次要求的数据
+  //所以直接触发data事件，因此不会将数据添加到缓存中。
+  //然后再调用read方法，触发下一次的_read调用，从而源源不断的产生数据，知道调用push(null)为止
+  //如果不是异步调用push方法，那么会将数据写入到可读就中的缓存中
+  if (state.flowing && state.length === 0 && !state.sync) {
+    stream.emit('data', chunk);
+    stream.read(0);
+  } else {
+    // update the buffer info.
+    // 将数据添加到缓冲队列中
+    state.length += state.objectMode ? 1 : chunk.length;
+    if (addToFront)
+      state.buffer.unshift(chunk);
+    else
+      state.buffer.push(chunk);
+    // 这里是异步的，因为内部调用了process.nextTick，所以会继续执行maybeReadMore
+    if (state.needReadable)
+      emitReadable(stream);
+  }
+  maybeReadMore(stream, state);
+}
+```
+重点就是在emitReadable和maybeReadMore这两个函数中，我们先来看一下emitReadable函数：
+```
+function emitReadable(stream) {
+  var state = stream._readableState;
+  state.needReadable = false;
+  // 因为还没有触发过readable事件，所以一开始state.emittedReadable为false
+  // 当触发了readable事件，state.emittedReadable会被设置为true，表示已经触发了readable事件
+  // readable事件在同步模式下并不会立即触发，因为调用了process.nextTick，默认是同步的
+  if (!state.emittedReadable) {
+    debug('emitReadable', state.flowing);
+    state.emittedReadable = true;
+    if (state.sync)
+      process.nextTick(emitReadable_, stream);
+    else
+      emitReadable_(stream);
+  }
+}
+
+// 触发readable事件
+function emitReadable_(stream) {
+  debug('emit readable');
+  stream.emit('readable');
+  flow(stream);
+}
+```
+maybeReadMore函数：
+```
+// 这里也是异步调用maybeReadMore_函数，并且会判断state.readingMore，因为这里也是异步执行，所以会先触发上面的异步操作，故会先触发readable事件，而触发完readable事件后，就执行maybeReadMore_函数
+function maybeReadMore(stream, state) {
+  if (!state.readingMore) {
+    state.readingMore = true;
+    process.nextTick(maybeReadMore_, stream, state);
+  }
+}
+
+function maybeReadMore_(stream, state) {
+  var len = state.length;
+  while (!state.reading && !state.flowing && !state.ended &&
+         state.length < state.highWaterMark) {
+    debug('maybeReadMore read 0');
+    stream.read(0);
+    if (len === state.length)
+      // didn't get any data, stop spinning.
+      break;
+    else
+      len = state.length;
+  }
+  state.readingMore = false;
+}
+```
+调用maybeReadMore_函数，其实内部就是通过while循环调用read(0)方法来蓄满可读流的缓冲区。所以我们才会看到先执行了read方法，然后触发了readable事件，然后再执行了多次read方法(其实就是在蓄满缓冲区)。

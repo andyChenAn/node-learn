@@ -384,7 +384,9 @@ Readable.prototype.read = function(n) {
   n = parseInt(n, 10);
   var state = this._readableState;
   var nOrig = n;
-
+  // 当n不为0时，表示需要读取数据，则表示将会触发readable事件
+  // 其实这里也就是调用read(n)，read()或read(null)方法时，会触发readable事件
+  // 而调用read(0)时，并不会触发
   if (n !== 0)
     state.emittedReadable = false;
 
@@ -515,6 +517,8 @@ function onEofChunk(stream, state) {
 function emitReadable(stream) {
   var state = stream._readableState;
   state.needReadable = false;
+  // 如果state.emittedReadable为false，表示还没有触发过readable事件
+  // 所以会触发readable事件，并将state.emittedReadable的值设置为true，表示已经触发过readable事件
   if (!state.emittedReadable) {
     debug('emitReadable', state.flowing);
     state.emittedReadable = true;
