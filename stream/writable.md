@@ -65,3 +65,26 @@ writable.write('jack');
 writable.write('alex');
 writable.end();
 ```
+### 可写流中的highWaterMark
+限制写入数据的大小的，如果写入的数据超过highWaterMark的值，那么就会触发可写流对象的drain事件
+```
+const {Writable} = require('stream');
+const fs = require('fs');
+const myWritable = new Writable({
+  write (chunk , encoding , callback) {
+    fs.writeFile('./andy.txt' , chunk , {
+      flag : 'a+'
+    } , function () {
+      console.log('数据已经写入到文件中');
+    });
+    callback();
+  },
+  highWaterMark : 3   // 这里把highWaterMark的值设置为3，默认为16kb
+});
+myWritable.on('drain' , () => {
+  console.log('写入的数据超过了highWaterMark');
+});
+myWritable.write('hello andy');
+myWritable.write('hello jack');
+myWritable.end();
+```
