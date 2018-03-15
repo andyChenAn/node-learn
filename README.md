@@ -19,3 +19,4 @@
 - [CommonJS规范](https://github.com/andyChenAn/node-learn/blob/master/CommonJS规范/README.md)
 - [http网络](https://github.com/andyChenAn/node-learn/tree/master/http/http.md)
   - [对象池](https://github.com/andyChenAn/node-learn/tree/master/http/httpParser.md)
+  - [请求解析过程](https://github.com/andyChenAn/node-learn/tree/master/http/http请求解析过程.md)
