@@ -17,3 +17,5 @@
 - [实现异步reduce](https://github.com/andyChenAn/node-learn/blob/master/实现异步reduce/README.md)
 - [Buffer缓冲区](https://github.com/andyChenAn/node-learn/blob/master/buffer/README.md)
 - [CommonJS规范](https://github.com/andyChenAn/node-learn/blob/master/CommonJS规范/README.md)
+- [http网络](https://github.com/andyChenAn/node-learn/tree/master/http/http.md)
+  - [对象池](https://github.com/andyChenAn/node-learn/tree/master/http/httpParser.md)
