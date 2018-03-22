@@ -3,7 +3,7 @@
 ### 什么是TCP？
 TCP：传输控制协议，是一种面向连接的，可靠的，基于字节流的传输层通信协议。在OSI模型中，它完成第四层传输层所指定的功能。
 ### TCP头格式
-![tcp-header](https://github.com/andyChenAn/node-learn/master/image/tcp-header.jpg)
+![tcp-header](https://github.com/andyChenAn/node-learn/raw/master/http/image/tcp-header.jpg)
 
 有几个点需要注意的：
 - TCP的包是没有IP地址的，那是IP层上的事。但是有源端口和目标端口。
@@ -16,6 +16,6 @@ TCP：传输控制协议，是一种面向连接的，可靠的，基于字节�
 ### TCP的状态机
 **TCP状态机：**
 
-![TCP状态机](https://github.com/andyChenAn/node-learn/master/image/status.png)
+![TCP状态机](https://github.com/andyChenAn/node-learn/raw/master/http/image/status.png)
 
-![TCP连接](https://github.com/andyChenAn/node-learn/master/image/tcp_open_close.jpg)
+![TCP连接](https://github.com/andyChenAn/node-learn/raw/master/http/image/tcp_open_close.jpg)
