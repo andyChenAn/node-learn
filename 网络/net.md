@@ -19,3 +19,5 @@ server.listen(3000 , () => {
 TCP：提供面向连接的，可靠的，基于字节流的服务。客户端和服务器在传输数据之前，需要先建立连接。
 
 Socket：支持TCP/IP网络通信的基本操作单元，是我们TCP/IP进行通信的接口。
+
+[参考这里](https://yi-love.github.io/blog/node.js/2017/02/21/node-net.html)
