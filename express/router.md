@@ -52,4 +52,6 @@ app.get = function (path) {
 
 2、这段代码中，创建了一个Router对象，也创建了一个Route对象，这两者之间的区别，Router可以看作是一个中间件容器，不仅可以存放路由中间件(Route)，还可以存放其他中间件，而Route仅仅是路由中间件，封装了路由信息。Router对象和Route对象都各自维护了一个stack数组，该数组保存了layer对象，而中间件相关的信息都被保存在layer对象中，所以可以说stack数组就是用来保存中间件的。而我们怎么来区分是路由中间件还是非路由中间件呢？就是通过layer.route来判断，如果layer.route=route，则表示该中间件时路由中间件，如果layer.route=undefined，则表示该中间件是非路由中间件。
 
-3、通过调用route[method]添加中间件，
+3、通过调用route[method]添加中间件，当我们调用app.get()方法添加中间件时，其实就是调用app[method]，最终就是调用route[method]来添加中间件。
+
+4、Router对象和Route对象都有一个stack属性，该属性里面保存的就是layer，其中layer有一个route属性，如果添加的是路由中间件，那么layer.route=route，这样保存在Router对象中的layer，可以通过route属性来执行Route对象中的中间件。
