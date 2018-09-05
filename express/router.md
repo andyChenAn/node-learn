@@ -54,4 +54,11 @@ app.get = function (path) {
 
 3、通过调用route[method]添加中间件，当我们调用app.get()方法添加中间件时，其实就是调用app[method]，最终就是调用route[method]来添加中间件。
 
-4、Router对象和Route对象都有一个stack属性，该属性里面保存的就是layer，其中layer有一个route属性，如果添加的是路由中间件，那么layer.route=route，这样保存在Router对象中的layer，可以通过route属性来执行Route对象中的中间件。
+4、Router对象和Route对象都有一个stack属性，该属性里面保存的就是layer，其中layer有一个route属性，如果添加的是路由中间件，那么layer.route=route，这样保存在Router对象中的layer，可以通过route属性来获取Route对象中的中间件。
+
+### 路由中间件和非路由中间件
+在Express中，中间件就是一个函数，用来处理请求和响应。Express应用实际上是一个个中间的组合。中间件可以分为路由中间件和非路由中间件。
+
+路由中间件：路由中间件是通过app.VERB()或app.route或route.VERB()方式来添加的，路由中间件是精确匹配请求路径。
+
+非路由中间件：非路由中间件是通过app.use()方法添加的，非路由中间件会匹配所有已path路径开始的请求。
