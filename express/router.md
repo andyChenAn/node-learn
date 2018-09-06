@@ -62,3 +62,21 @@ app.get = function (path) {
 路由中间件：路由中间件是通过app.VERB()或app.route或route.VERB()方式来添加的，路由中间件是精确匹配请求路径。
 
 非路由中间件：非路由中间件是通过app.use()方法添加的，非路由中间件会匹配所有已path路径开始的请求。
+
+### 中间件是怎么执行的？
+
+```
+match = matchLayer(layer, path);
+```
+从上面代码中，我们可以看出，会去对路径和layer进行匹配，如果为true，表示路径和中间件函数匹配，当请求该路径的时候，会执行中间件函数，如果为false，那么就不会执行该中间件函数。
+
+不同的路径，执行不同的中间件函数，在应用运行过程中，Router对象只会有一个实例，而每次调用app.use时，都会将非路由中间件添加到layer对象上，并将layer添加到Router对象的stack属性中。而每次调用app.VERB()方法时，都会将路由中间件添加到layer对象上，并将layer保存在Route对象的stack属性中。当处理请求时，会按照添加的顺序一个一个的调用，如果遇到路由中间件，会逐个调用Route对象中的stack数组存放的函数。
+
+### 总结：
+1、app.use方法来添加非路由中间件，app[method]方法来添加路由中间件，中间件的添加需要借助Router对象和Route对象来完成。
+
+2、Router对象可以看作是一个路由容器。里面存放了路由中间件和非路由中间件，对于路由中间件，Router.stack数组中的layer对象有一个route属性指向对应的Route对象，从而将Router.stack与Route.stack关联起来。对于非路由中间件，Router.stack数组中的layer对象的route属性值为undefined。可以通过这个来判断该中间件是路由中间件还是非路由中间件。我们可以通过遍历Router对象，来查找所有的中间件。
+
+3、中间件的执行顺序是按照添加顺序来执行。如果想要执行下一个中间件，必须调用next，才能执行下一个中间件。
+
+[参考这里](https://cnodejs.org/topic/545720506537f4d52c414d87)
