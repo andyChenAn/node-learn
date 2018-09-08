@@ -26,3 +26,4 @@
 - [express学习](https://github.com/andyChenAn/node-learn/tree/master/express)
   - [express的路由机制](https://github.com/andyChenAn/node-learn/tree/master/express/router.md)
   - [仿express框架的心路历程(1)](https://github.com/andyChenAn/node-learn/tree/master/express/first-edition.md)
+  - [仿express框架的心路历程(2)](https://github.com/andyChenAn/node-learn/tree/master/express/second-edition.md)
