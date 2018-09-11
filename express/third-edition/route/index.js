@@ -2,23 +2,34 @@ const Layer = require('./layer.js');
 const Route = require('./route.js');
 let slice = Array.prototype.slice;
 function Router () {
-    this.stack = [new Layer('*' , function (req , res) {
-        res.writeHead(404 , 'Not Found' , {
-            'Content-Type' : 'text/plain'
-        });
-        res.end('the page is not found');
-    })];
+    this.stack = [];
 };
-Router.prototype.handle = function (req , res) {
-    for (let i = 0 , len = this.stack.length ; i < len ; i++) {
+Router.prototype.handle = function (req , res , done) {
+    let index = 0;
+    let stack = this.stack;
+    let method = req.method.toLowerCase();
+    function next (err) {
+        let layerError = err == 'route' ? null : err;
+        if (layerError === 'router') {
+            return done(null);
+        };
+        if (layerError) {
+            return done(layerError);
+        };
+        if (index >= stack.length) {
+            return done(layerError);
+        };
+        let layer = stack[index++];
         // 如果router对象中的path属性和请求路径相同，那么就可以调用router对象中的layer对象的handle_request方法来调用相应的handle
         // 又因为router对象的layer对象保存的应用程序是绑定route.dispatch方法，所以其实最终执行的是route.dispath方法，在这个方法中去遍历route对象中的layer，
         // 然后判断请求方法是否匹配，如果匹配就执行该处理函数
-        if (this.stack[i].match(req.url)) {
-            this.stack[i].handle_request(req , res);
-        }
+        if (layer.match(req.url) && layer.route.has_method(method) && layer.route) {
+            layer.handle_request(req , res , next);
+        } else {
+            layer.handle_error(layerError , req , res , next);
+        };
     };
-    return this.stack[0].handle_request(req , res);
+    next();
 };
 Router.prototype.route = function (path) {
     let route = new Route(path);

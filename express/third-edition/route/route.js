@@ -10,21 +10,32 @@ Route.prototype.has_method = function (method) {
     let methodName = method.toLowerCase();
     return Boolean(this.methods[methodName]);
 };
-// Route.prototype.get = function (handle) {
-//     
-//     let layer = new Layer('/' , handle);
-//     layer.method = 'get';
-//     this.methods['get'] = true;
-//     this.stack.push(layer);
-//     return this;
-// };
-Route.prototype.dispatch = function (req , res) {
-    let method = req.method;
-    for (let i = 0 , len = this.stack.length ; i < len ; i++) {
-        if (this.has_method(method)) {
-            return this.stack[i].handle_request(req , res);
+Route.prototype.dispatch = function (req , res , done) {
+    let index = 0;
+    let stack = this.stack;
+    let method = req.method.toLowerCase();
+    function next (err) {
+        if (err && err == 'route') {
+            return done(err);
+        };
+        if (err && err == 'router') {
+            return done(err);
+        };
+        // 当index大于stack.length就执行done了
+        if (index >= stack.length) {
+            return done(err);
+        };
+        let layer = stack[index++];
+        if (layer.method != method) {
+            return next(err);
         }
-    }
+        if (err) {
+            layer.handle_error(err , req , res , next);
+        } else {
+            layer.handle_request(req , res , next);
+        }
+    };
+    next();
 };
 
 http.METHODS.forEach(function (method) {
@@ -40,12 +51,12 @@ http.METHODS.forEach(function (method) {
                 throw new Error(handle + 'must be a function');
             }
             let layer = new Layer('/' , handle);
-            layer.method = method.toLowerCase();
+            layer.method = method;
             this.methods[method] = true;
             this.stack.push(layer);
-            return this;
         };
+        return this;
     }
 });
 
-module.exports = Route;
+exports = module.exports = Route;
